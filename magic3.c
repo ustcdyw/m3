@@ -145,7 +145,7 @@ getnextnum()
 			else if (num[i][j] == 2)
 				num2++;
 		}
-	if (num2 - num1 >= 4)
+	if (num2 - num1 >= 2)
 		next = 1;
 	else if (num1 - num2 >= 2)
 		next = 2;
