@@ -11,15 +11,19 @@
 #include <stdio.h>
 #include <assert.h>
 #include <strings.h>
+#include <string.h>
 
 #define TOP 	(LINES/2 - 8)
 #define LEFT	(COLS/2 - 14)
 
 static int lines;
 static int cols;
+static int prenum[4][4];
+static int pre_randnum;
 static int num[4][4];
 static int next_randnum;
 static int score;
+static int difficulty = 2;
 
 #ifdef STATISTICS
 static int numstat[3] = {0};
@@ -117,16 +121,32 @@ refresh_board()
 	}
 	attrset(A_NORMAL);
 	sprintf(numstr, "%d", score);
-	mvaddstr(TOP - 8, LEFT + 11, "Score:");
-	mvaddstr(TOP - 7, LEFT + 13, "     ");
-	mvaddstr(TOP - 7, LEFT + 13, numstr);
-	mvaddstr(TOP - 6, LEFT + 8, "Next number:");
+	mvaddstr(TOP - 8, LEFT + 5, "Score:");
+	mvaddstr(TOP - 8, LEFT + 13, "     ");
+	mvaddstr(TOP - 8, LEFT + 13, numstr);
+	mvaddstr(TOP - 3, LEFT + 5, "Next:");
+
+	mvaddstr(TOP - 6, LEFT + 5, "Mode:     ");
+	switch (difficulty) {
+	case 1:
+		mvaddstr(TOP - 6, LEFT + 13, "Easy    ");
+		break;
+	case 2:
+		mvaddstr(TOP - 6, LEFT + 13, "Normal  ");
+		break;
+	case 3:
+		mvaddstr(TOP - 6, LEFT + 13, "Hard    ");
+		break;
+	case 4:
+		mvaddstr(TOP - 6, LEFT + 13, "Serious ");
+		break;
+	}
 	attrset(COLOR_PAIR(next_randnum) | A_BOLD);
-	mvaddstr(TOP - 4, LEFT + 11, "      ");
-	mvaddstr(TOP - 3, LEFT + 11, "      ");
-	mvaddstr(TOP - 2, LEFT + 11, "      ");
+	mvaddstr(TOP - 4, LEFT + 13, "      ");
+	mvaddstr(TOP - 3, LEFT + 13, "      ");
+	mvaddstr(TOP - 2, LEFT + 13, "      ");
 	sprintf(numstr, "%d", next_randnum);
-	mvaddstr(TOP - 3, LEFT + 13, numstr);
+	mvaddstr(TOP - 3, LEFT + 15, numstr);
 	attrset(A_NORMAL);
 	move(0, 0);
 	refresh();
@@ -145,9 +165,9 @@ getnextnum()
 			else if (num[i][j] == 2)
 				num2++;
 		}
-	if (num2 - num1 >= 2)
+	if (num2 - num1 >= difficulty)
 		next = 1;
-	else if (num1 - num2 >= 2)
+	else if (num1 - num2 >= difficulty)
 		next = 2;
 	else
 		next = 1 + rand() % 3;
@@ -208,6 +228,12 @@ newmove(char ch)
 {
 	int i, j, k;
 	int curnum, nextnum, moved = 0;
+
+	/* Undo the previous move */
+	int tmpnum[4][4];
+	int tmp_randnum = next_randnum;
+	memcpy(tmpnum, num, sizeof(num));
+
 	switch(ch) {
 	case 'h': // left
 		for (i = 0; i < 4; i++)
@@ -215,10 +241,12 @@ newmove(char ch)
 				curnum = num[i][j];
 				nextnum = num[i][j+1];
 				if (curnum == 0) {
-					for (k = j; k < 3; k++)
+					for (k = j; k < 3; k++) {
 						num[i][k] = num[i][k+1];
+						if (num[i][k] != 0)
+							moved = 1;
+					}
 					num[i][3] = 0;
-					moved = 1;
 					break;
 				} else if (curnum == nextnum && curnum > 2) {
 					num[i][j] <<= 1;
@@ -244,10 +272,12 @@ newmove(char ch)
 				curnum = num[i][j];
 				nextnum = num[i][j-1];
 				if (curnum == 0) {
-					for (k = j; k > 0; k--)
+					for (k = j; k > 0; k--) {
 						num[i][k] = num[i][k-1];
+						if (num[i][k] != 0)
+							moved = 1;
+					}
 					num[i][0] = 0;
-					moved = 1;
 					break;
 				} else if (curnum == nextnum && curnum > 2) {
 					num[i][j] <<= 1;
@@ -273,10 +303,12 @@ newmove(char ch)
 				curnum = num[i][j];
 				nextnum = num[i+1][j];
 				if (curnum == 0) {
-					for (k = i; k < 3; k++)
+					for (k = i; k < 3; k++) {
 						num[k][j] = num[k+1][j];
+						if (num[k][j] != 0)
+							moved = 1;
+					}
 					num[3][j] = 0;
-					moved = 1;
 					break;
 				} else if (curnum == nextnum && curnum > 2) {
 					num[i][j] <<= 1;
@@ -302,10 +334,12 @@ newmove(char ch)
 				curnum = num[i][j];
 				nextnum = num[i-1][j];
 				if (curnum == 0) {
-					for (k = i; k > 0; k--)
+					for (k = i; k > 0; k--) {
 						num[k][j] = num[k-1][j];
+						if (num[k][j] != 0)
+							moved = 1;
+					}
 					num[0][j] = 0;
-					moved = 1;
 					break;
 				} else if (curnum == nextnum && curnum > 2) {
 					num[i][j] <<= 1;
@@ -330,6 +364,10 @@ newmove(char ch)
 #ifdef STATISTICS
 		steps++;
 #endif
+		/* Record it when it really moves. */
+		memcpy(prenum, tmpnum, sizeof(prenum));
+		pre_randnum = tmp_randnum;
+
 		getscore();
 		newrand(ch);
 	}
@@ -444,6 +482,8 @@ main(int argc, char *argv[])
 	cols = COLS;
 newgame:
 	bzero(num, sizeof(num));
+	num[rand()%4][rand()%4] = 3;
+	memcpy(prenum, num, sizeof(num));
 #ifdef STATISTICS
 	steps = 0;
 	numstat[0] = numstat[1] = numstat[2] = 0;
@@ -466,29 +506,43 @@ newgame:
 		case 'l':
 			newmove('l');
 			break;
+		case 'u':
+			wclear(stdscr);
+			memcpy(num, prenum, sizeof(num));
+			next_randnum = pre_randnum;
+			break;
+		case 'i': // increase difficulty
+			if (++difficulty > 4)
+				difficulty = 4;
+			break;
+		case 'd': // decrease difficulty
+			if (--difficulty < 1)
+				difficulty = 1;
+			break;
 		case 'n':
 		case 'N':
 			goto newgame;
 		}
 		refresh_board();
 		if (gameover()) {
-			mvaddstr(TOP+18, LEFT+10, "Game over!");
-			mvaddstr(TOP+19, LEFT+10, "New Game: 'N/n'");
-			mvaddstr(TOP+20, LEFT+10, "Quit: 'Q/q'");
+			mvaddstr(TOP+18, LEFT+5, "Game over!");
+			mvaddstr(TOP+19, LEFT+5, "New Game: 'N/n'");
+			mvaddstr(TOP+20, LEFT+5, "Quit: 'Q/q'");
+			mvaddstr(TOP+21, LEFT+5, "Undo: 'u'");
 #ifdef STATISTICS
-			mvaddstr(TOP+22, LEFT+10, "Statistics:");
-			mvaddstr(TOP+23, LEFT+10, "Number of 1:");
+			//mvaddstr(TOP+22, LEFT+5, "Statistics:");
+			mvaddstr(TOP+23, LEFT+5, "Number of 1:");
 			sprintf(numstatstr, "%d", numstat[0]);
-			mvaddstr(TOP+23, LEFT+23, numstatstr);
-			mvaddstr(TOP+24, LEFT+10, "Number of 2:");
+			mvaddstr(TOP+23, LEFT+18, numstatstr);
+			mvaddstr(TOP+24, LEFT+5, "Number of 2:");
 			sprintf(numstatstr, "%d", numstat[1]);
-			mvaddstr(TOP+24, LEFT+23, numstatstr);
-			mvaddstr(TOP+25, LEFT+10, "Number of 3:");
+			mvaddstr(TOP+24, LEFT+18, numstatstr);
+			mvaddstr(TOP+25, LEFT+5, "Number of 3:");
 			sprintf(numstatstr, "%d", numstat[2]);
-			mvaddstr(TOP+25, LEFT+23, numstatstr);
-			mvaddstr(TOP+26, LEFT+10, "Steps:");
+			mvaddstr(TOP+25, LEFT+18, numstatstr);
+			mvaddstr(TOP+26, LEFT+5, "Steps:");
 			sprintf(numstatstr, "%d", steps);
-			mvaddstr(TOP+26, LEFT+23, numstatstr);
+			mvaddstr(TOP+26, LEFT+18, numstatstr);
 #endif
 		}
 	}
