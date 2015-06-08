@@ -147,7 +147,7 @@ getnextnum()
 		}
 	if (num2 - num1 >= 4)
 		next = 1;
-	else if (num1 - num2 >= 4)
+	else if (num1 - num2 >= 2)
 		next = 2;
 	else
 		next = 1 + rand() % 3;
