@@ -907,9 +907,8 @@ main(int argc, char *argv[])
 	cols = COLS;
 newgame:
 	bzero(num, sizeof(num));
-	/* XXX */
-//	num[rand()%4][rand()%4] = 3;
-	num[1][1] = 1;
+	num[rand()%4][rand()%4] = 3;
+//	num[1][1] = 1;
 	memcpy(prenum, num, sizeof(num));
 #ifdef STATISTICS
 	steps = 0;
