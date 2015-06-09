@@ -888,6 +888,44 @@ gameover()
 		}
 	return 1;
 }
+static int
+readgame(char *name)
+{
+	FILE *f;
+	int i, j;
+	int tmp[4][4];
+	bzero(tmp, sizeof(tmp));
+	if ((f = fopen(name, "r")) == NULL)
+		return 0;
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < 4; j++) {
+			if (fscanf(f, "%d\n", &tmp[i][j]) == EOF) {
+				goto readerror;
+			}
+		}
+	}
+	memcpy(num, tmp, sizeof(num));
+	fclose(f);
+	return 1;
+readerror:
+	fclose(f);
+	return 0;
+}
+static int
+savegame(char *name)
+{
+	FILE *f;
+	int i, j;
+	if ((f = fopen(name, "w+")) == NULL)
+		return 0;
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < 4; j++) {
+			fprintf(f, "%d\n", num[i][j]);
+		}
+	}
+	fclose(f);
+	return 1;
+}
 int
 main(int argc, char *argv[])
 {
@@ -920,6 +958,8 @@ newgame:
 	while (ch != 'q' && ch != 'Q') {
 		ch = getkey();
 		moved = 0;
+		/* clean status bar */
+		mvaddstr(TOP+17, LEFT+5, "                                  ");
 		switch(ch) {
 		case 'h':
 			newmove('h');
@@ -955,6 +995,21 @@ newgame:
 		case 'w':
 			if (--dyspeed < 1)
 				dyspeed = 1;
+			break;
+		case 'r':
+			if (readgame("magic3.sv"))
+				mvaddstr(TOP+17, LEFT+5, "Read successful");
+			else
+				mvaddstr(TOP+17, LEFT+5, "Read failed");
+			break;
+		case 'f':
+			if (savegame("magic3.sv"))
+				mvaddstr(TOP+17, LEFT+5, "Save successful");
+			else
+				mvaddstr(TOP+17, LEFT+5, "Save failed");
+			break;
+		case 'c':
+			wclear(stdscr);
 			break;
 		case 'n':
 		case 'N':
