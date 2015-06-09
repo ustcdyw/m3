@@ -16,6 +16,14 @@
 #define TOP 	(LINES/2 - 8)
 #define LEFT	(COLS/2 - 14)
 
+#define LEFT_STEP 6
+#define TOP_STEP 3
+
+#define	D_LEFT	1
+#define	D_RIGHT	2
+#define	D_UP	4
+#define	D_DOWN	8
+
 static int lines;
 static int cols;
 static int prenum[4][4];
@@ -25,6 +33,12 @@ static int next_randnum;
 static int score;
 static int difficulty = 2;
 
+static int dyeffect[4][4];
+static int dyundo;
+static int dyspeed = 4;
+#define DELAYBASE 5000
+
+static int moved;
 #ifdef STATISTICS
 static int numstat[3] = {0};
 static int steps;
@@ -56,6 +70,14 @@ getscore()
 		}
 		printf("\n\r");
 	}
+	printf("\n\r");
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < 4; j++) {
+			printf(" %3d ", prenum[i][j]);
+		}
+		printf("\n\r");
+	}
+	printf("\n\r");
 #endif
 }
 static char
@@ -92,16 +114,256 @@ draw_board()
 	mvaddstr(TOP+4*4, LEFT, "+------+------+------+------+");
 }
 static void
+dymove()
+{
+
+	int i, j, k, movestep = 0, movedir;
+	char numstr[10];
+#ifdef DEBUG
+	move(0, 20);
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < 4; j++) {
+			printf(" %3d ", dyeffect[i][j]);
+		}
+		printf("\n\r");
+	}
+	printf("\n\r");
+	move(0, 0);
+#endif
+	for (i = 0; i < 4; i++)
+		for (j = 0; j < 4; j ++) {
+			if (dyeffect[i][j] == D_LEFT) {
+				movestep = LEFT_STEP;
+				movedir = D_LEFT;
+				goto out;
+			} else if (dyeffect[i][j] == D_RIGHT) {
+				movestep = LEFT_STEP;
+				movedir = D_RIGHT;
+				goto out;
+			} else if (dyeffect[i][j] == D_UP) {
+				movestep = TOP_STEP;
+				movedir = D_UP;
+				goto out;
+			} else if (dyeffect[i][j] == D_DOWN) {
+				movestep = TOP_STEP;
+				movedir = D_DOWN;
+				goto out;
+			}
+		}
+	return;
+out:
+	for (k = 1; k <= movestep; k++) {
+		if (dyundo == 1) {
+			k = movestep - k + 1;
+		}
+		switch (movedir) {
+		case D_LEFT:
+			for (i = 0; i < 4; i++) {
+				for (j = 0; j < 4; j++) {
+					if (prenum[i][j] == 0)
+						continue;
+					sprintf(numstr, "%d", prenum[i][j]);
+					if (prenum[i][j] < 3)
+						attrset(COLOR_PAIR(prenum[i][j]) | A_BOLD);
+					if (prenum[i][j] >= 3)
+						attrset(COLOR_PAIR(3) | A_BOLD);
+					if (dyeffect[i][j] == 0) {
+						mvaddstr(TOP+1+i*4, LEFT+1+j*7, "      ");
+						mvaddstr(TOP+2+i*4, LEFT+1+j*7, "      ");
+						mvaddstr(TOP+3+i*4, LEFT+1+j*7, "      ");
+						mvaddstr(TOP+2+i*4, LEFT+2+j*7, numstr);
+						continue;
+					}
+					mvaddstr(TOP+1+i*4, LEFT+1+j*7 - k, "      ");
+					mvaddstr(TOP+2+i*4, LEFT+1+j*7 - k, "      ");
+					mvaddstr(TOP+3+i*4, LEFT+1+j*7 - k, "      ");
+					mvaddstr(TOP+2+i*4, LEFT+2+j*7 - k, numstr);
+					/* background */
+					attrset(A_NORMAL);
+					if (k <= movestep) {
+						if (dyundo == 0) {
+							mvaddstr(TOP+1+i*4, LEFT+1+j*7 - k + 6, " ");
+							mvaddstr(TOP+2+i*4, LEFT+1+j*7 - k + 6, " ");
+							mvaddstr(TOP+3+i*4, LEFT+1+j*7 - k + 6, " ");
+						} else {
+							mvaddstr(TOP+1+i*4, LEFT+1+j*7 - k - 1, " ");
+							mvaddstr(TOP+2+i*4, LEFT+1+j*7 - k - 1, " ");
+							mvaddstr(TOP+3+i*4, LEFT+1+j*7 - k - 1, " ");
+						}
+					}
+#if LEFT_STEP==7
+					else {
+						mvaddstr(TOP+1+i*4, LEFT+1+j*7 - k + 6, "|");
+						mvaddstr(TOP+2+i*4, LEFT+1+j*7 - k + 6, "|");
+						mvaddstr(TOP+3+i*4, LEFT+1+j*7 - k + 6, "|");
+					}
+#endif
+					if (prenum[i][j] < 3)
+						attrset(COLOR_PAIR(prenum[i][j]) | A_BOLD);
+					if (prenum[i][j] >= 3)
+						attrset(COLOR_PAIR(3) | A_BOLD);
+				}
+			}
+			break;
+		case D_RIGHT:
+			for (i = 0; i < 4; i++) {
+				for (j = 3; j >= 0; j--) {
+					if (prenum[i][j] == 0)
+						continue;
+					sprintf(numstr, "%d", prenum[i][j]);
+					if (prenum[i][j] < 3)
+						attrset(COLOR_PAIR(prenum[i][j]) | A_BOLD);
+					if (prenum[i][j] >= 3)
+						attrset(COLOR_PAIR(3) | A_BOLD);
+					if (dyeffect[i][j] == 0) {
+						mvaddstr(TOP+1+i*4, LEFT+1+j*7, "      ");
+						mvaddstr(TOP+2+i*4, LEFT+1+j*7, "      ");
+						mvaddstr(TOP+3+i*4, LEFT+1+j*7, "      ");
+						mvaddstr(TOP+2+i*4, LEFT+2+j*7, numstr);
+						continue;
+					}
+					mvaddstr(TOP+1+i*4, LEFT+1+j*7 + k, "      ");
+					mvaddstr(TOP+2+i*4, LEFT+1+j*7 + k, "      ");
+					mvaddstr(TOP+3+i*4, LEFT+1+j*7 + k, "      ");
+					mvaddstr(TOP+2+i*4, LEFT+2+j*7 + k, numstr);
+					attrset(A_NORMAL);
+					if (k <= movestep) {
+						if (dyundo == 0) {
+							mvaddstr(TOP+1+i*4, LEFT+1+j*7 + k - 1, " ");
+							mvaddstr(TOP+2+i*4, LEFT+1+j*7 + k - 1, " ");
+							mvaddstr(TOP+3+i*4, LEFT+1+j*7 + k - 1, " ");
+						} else {
+							mvaddstr(TOP+1+i*4, LEFT+1+j*7 + k + 6, " ");
+							mvaddstr(TOP+2+i*4, LEFT+1+j*7 + k + 6, " ");
+							mvaddstr(TOP+3+i*4, LEFT+1+j*7 + k + 6, " ");
+						}
+					}
+#if LEFT_STEP==7
+					else {
+						mvaddstr(TOP+1+i*4, LEFT+1+j*7 + k - 1, "|");
+						mvaddstr(TOP+2+i*4, LEFT+1+j*7 + k - 1, "|");
+						mvaddstr(TOP+3+i*4, LEFT+1+j*7 + k - 1, "|");
+					}
+#endif
+					if (prenum[i][j] < 3)
+						attrset(COLOR_PAIR(prenum[i][j]) | A_BOLD);
+					if (prenum[i][j] >= 3)
+						attrset(COLOR_PAIR(3) | A_BOLD);
+				}
+			}
+			break;
+		case D_UP:
+			for (i = 0; i < 4; i++) {
+				for (j = 0; j < 4; j++) {
+					if (prenum[i][j] == 0)
+						continue;
+					sprintf(numstr, "%d", prenum[i][j]);
+					if (prenum[i][j] < 3)
+						attrset(COLOR_PAIR(prenum[i][j]) | A_BOLD);
+					if (prenum[i][j] >= 3)
+						attrset(COLOR_PAIR(3) | A_BOLD);
+					if (dyeffect[i][j] == 0) {
+						mvaddstr(TOP+1+i*4, LEFT+1+j*7, "      ");
+						mvaddstr(TOP+2+i*4, LEFT+1+j*7, "      ");
+						mvaddstr(TOP+3+i*4, LEFT+1+j*7, "      ");
+						mvaddstr(TOP+2+i*4, LEFT+2+j*7, numstr);
+						continue;
+					}
+					mvaddstr(TOP+1+i*4 - k, LEFT+1+j*7, "      ");
+					mvaddstr(TOP+2+i*4 - k, LEFT+1+j*7, "      ");
+					mvaddstr(TOP+3+i*4 - k, LEFT+1+j*7, "      ");
+					mvaddstr(TOP+2+i*4 - k, LEFT+2+j*7, numstr);
+					attrset(A_NORMAL);
+					if (k <= movestep) {
+						if (dyundo == 0)
+							mvaddstr(TOP+1+i*4 - k + 3, LEFT+1+j*7, "      ");
+						else
+							mvaddstr(TOP+1+i*4 - k - 1, LEFT+1+j*7, "      ");
+					}
+#if LEFT_STEP==7
+					else {
+						mvaddstr(TOP+1+i*4 - k + 3, LEFT+1+j*7, "------");
+					}
+#endif
+					if (prenum[i][j] < 3)
+						attrset(COLOR_PAIR(prenum[i][j]) | A_BOLD);
+					if (prenum[i][j] >= 3)
+						attrset(COLOR_PAIR(3) | A_BOLD);
+				}
+			}
+			break;
+		case D_DOWN:
+			for (i = 3; i >= 0; i--) {
+				for (j = 0; j < 4; j++) {
+					if (prenum[i][j] == 0)
+						continue;
+					sprintf(numstr, "%d", prenum[i][j]);
+					if (prenum[i][j] < 3)
+						attrset(COLOR_PAIR(prenum[i][j]) | A_BOLD);
+					if (prenum[i][j] >= 3)
+						attrset(COLOR_PAIR(3) | A_BOLD);
+					if (dyeffect[i][j] == 0) {
+						mvaddstr(TOP+1+i*4, LEFT+1+j*7, "      ");
+						mvaddstr(TOP+2+i*4, LEFT+1+j*7, "      ");
+						mvaddstr(TOP+3+i*4, LEFT+1+j*7, "      ");
+						mvaddstr(TOP+2+i*4, LEFT+2+j*7, numstr);
+						continue;
+					}
+					mvaddstr(TOP+1+i*4 + k, LEFT+1+j*7, "      ");
+					mvaddstr(TOP+2+i*4 + k, LEFT+1+j*7, "      ");
+					mvaddstr(TOP+3+i*4 + k, LEFT+1+j*7, "      ");
+					mvaddstr(TOP+2+i*4 + k, LEFT+2+j*7, numstr);
+					attrset(A_NORMAL);
+					if (k <= movestep) {
+						if (dyundo == 0)
+							mvaddstr(TOP+1+i*4 + k - 1, LEFT+1+j*7, "      ");
+						else
+							mvaddstr(TOP+1+i*4 + k + 3, LEFT+1+j*7, "      ");
+					}
+#if LEFT_STEP==7
+					else {
+						mvaddstr(TOP+1+i*4 + k - 1, LEFT+1+j*7, "------");
+					}
+#endif
+					if (prenum[i][j] < 3)
+						attrset(COLOR_PAIR(prenum[i][j]) | A_BOLD);
+					if (prenum[i][j] >= 3)
+						attrset(COLOR_PAIR(3) | A_BOLD);
+				}
+			}
+			break;
+		}
+		move(0, 0);
+		refresh();
+		if (movestep == LEFT_STEP)
+			usleep(dyspeed * DELAYBASE);
+		else
+			usleep(2 * dyspeed * DELAYBASE);
+		if (dyundo == 1) {
+			k = movestep - k + 1;
+			if (k == movestep)
+				dyundo = 0;
+		}
+	}
+}
+static void
 refresh_board()
 {
 	int i, j;
-	char numstr[10] = {0};
+	char numstr[20] = {0};
 	if (lines != LINES || cols != COLS) {
 		lines = LINES;
 		cols = COLS;
 		wclear(stdscr);
 	}
 	
+	draw_board();
+
+	/* dynamic effect */
+	if (moved) {
+		dymove();
+	}
+	attrset(A_NORMAL);
 	draw_board();
 	for (i = 0; i < 4; i++) {
 		for (j = 0; j < 4; j++) {
@@ -116,31 +378,34 @@ refresh_board()
 			mvaddstr(TOP+2+i*4, LEFT+1+j*7, "      ");
 			mvaddstr(TOP+3+i*4, LEFT+1+j*7, "      ");
 			mvaddstr(TOP+2+i*4, LEFT+2+j*7, numstr);
-			//if (num[i][j] < 3)
 		}
 	}
 	attrset(A_NORMAL);
 	sprintf(numstr, "%d", score);
-	mvaddstr(TOP - 8, LEFT + 5, "Score:");
-	mvaddstr(TOP - 8, LEFT + 13, "     ");
-	mvaddstr(TOP - 8, LEFT + 13, numstr);
+	mvaddstr(TOP - 9, LEFT + 5, "Score:");
+	mvaddstr(TOP - 9, LEFT + 13, "     ");
+	mvaddstr(TOP - 9, LEFT + 13, numstr);
 	mvaddstr(TOP - 3, LEFT + 5, "Next:");
 
 	mvaddstr(TOP - 6, LEFT + 5, "Mode:     ");
 	switch (difficulty) {
 	case 1:
-		mvaddstr(TOP - 6, LEFT + 13, "Easy    ");
+		mvaddstr(TOP - 6, LEFT + 13, "Easy    (e/d)");
 		break;
 	case 2:
-		mvaddstr(TOP - 6, LEFT + 13, "Normal  ");
+		mvaddstr(TOP - 6, LEFT + 13, "Normal  (e/d)");
 		break;
 	case 3:
-		mvaddstr(TOP - 6, LEFT + 13, "Hard    ");
+		mvaddstr(TOP - 6, LEFT + 13, "Hard    (e/d)");
 		break;
 	case 4:
-		mvaddstr(TOP - 6, LEFT + 13, "Serious ");
+		mvaddstr(TOP - 6, LEFT + 13, "Serious (e/d)");
 		break;
 	}
+	mvaddstr(TOP - 7, LEFT + 5, "Speed:    ");
+	sprintf(numstr, "%d       (w/s)", 9 - dyspeed);
+	mvaddstr(TOP - 7, LEFT + 13, numstr);
+
 	attrset(COLOR_PAIR(next_randnum) | A_BOLD);
 	mvaddstr(TOP - 4, LEFT + 13, "      ");
 	mvaddstr(TOP - 3, LEFT + 13, "      ");
@@ -150,7 +415,7 @@ refresh_board()
 	attrset(A_NORMAL);
 	move(0, 0);
 	refresh();
-	wrefresh(stdscr);
+	//wrefresh(stdscr);
 }
 static int
 getnextnum()
@@ -227,12 +492,14 @@ static void
 newmove(char ch)
 {
 	int i, j, k;
-	int curnum, nextnum, moved = 0;
+	int curnum, nextnum;
 
 	/* Undo the previous move */
 	int tmpnum[4][4];
 	int tmp_randnum = next_randnum;
 	memcpy(tmpnum, num, sizeof(num));
+
+	bzero(dyeffect, sizeof(dyeffect));
 
 	switch(ch) {
 	case 'h': // left
@@ -241,6 +508,20 @@ newmove(char ch)
 				curnum = num[i][j];
 				nextnum = num[i][j+1];
 				if (curnum == 0) {
+					/* dynamic effect */
+					for (k = j+1; k < 4; k++) {
+						if (num[i][k] != 0) {
+							dyeffect[i][k] = D_LEFT;
+						}
+						/*
+						if (num[i][k] == 1)
+							dyeffect[i][k] = 0x1;
+						else if (num[i][k] == 2)
+							dyeffect[i][k] = 0x2;
+						else if (num[i][k] >= 3)
+							dyeffect[i][k] = 0x4;
+							*/
+					}
 					for (k = j; k < 3; k++) {
 						num[i][k] = num[i][k+1];
 						if (num[i][k] != 0)
@@ -249,6 +530,19 @@ newmove(char ch)
 					num[i][3] = 0;
 					break;
 				} else if (curnum == nextnum && curnum > 2) {
+					for (k = j+1; k < 4; k++) {
+						if (num[i][k] != 0) {
+							dyeffect[i][k] = D_LEFT;
+						}
+						/*
+						if (num[i][k] == 1)
+							dyeffect[i][k] = 0x1;
+						else if (num[i][k] == 2)
+							dyeffect[i][k] = 0x2;
+						else if (num[i][k] >= 3)
+							dyeffect[i][k] = 0x4;
+							*/
+					}
 					num[i][j] <<= 1;
 					for (k = j+1; k < 3; k++)
 						num[i][k] = num[i][k+1];
@@ -257,6 +551,19 @@ newmove(char ch)
 					break;
 				} else if ((curnum == 1 && nextnum == 2 )
 					   || (curnum == 2 && nextnum == 1)) {
+					for (k = j+1; k < 4; k++) {
+						if (num[i][k] != 0) {
+							dyeffect[i][k] = D_LEFT;
+						}
+						/*
+						if (num[i][k] == 1)
+							dyeffect[i][k] = 0x1;
+						else if (num[i][k] == 2)
+							dyeffect[i][k] = 0x2;
+						else if (num[i][k] >= 3)
+							dyeffect[i][k] = 0x4;
+							*/
+					}
 					num[i][j] = 3;
 					for (k = j+1; k < 3; k++)
 						num[i][k] = num[i][k+1];
@@ -272,6 +579,19 @@ newmove(char ch)
 				curnum = num[i][j];
 				nextnum = num[i][j-1];
 				if (curnum == 0) {
+					for (k = j-1; k >= 0; k--) {
+						if (num[i][k] != 0) {
+							dyeffect[i][k] = D_RIGHT;
+						}
+						/*
+						if (num[i][k] == 1)
+							dyeffect[i][k] = 0x10;
+						else if (num[i][k] == 2)
+							dyeffect[i][k] = 0x20;
+						else if (num[i][k] >= 3)
+							dyeffect[i][k] = 0x40;
+							*/
+					}
 					for (k = j; k > 0; k--) {
 						num[i][k] = num[i][k-1];
 						if (num[i][k] != 0)
@@ -280,6 +600,19 @@ newmove(char ch)
 					num[i][0] = 0;
 					break;
 				} else if (curnum == nextnum && curnum > 2) {
+					for (k = j-1; k >= 0; k--) {
+						if (num[i][k] != 0) {
+							dyeffect[i][k] = D_RIGHT;
+						}
+						/*
+						if (num[i][k] == 1)
+							dyeffect[i][k] = 0x10;
+						else if (num[i][k] == 2)
+							dyeffect[i][k] = 0x20;
+						else if (num[i][k] >= 3)
+							dyeffect[i][k] = 0x40;
+							*/
+					}
 					num[i][j] <<= 1;
 					for (k = j-1; k > 0; k--)
 						num[i][k] = num[i][k-1];
@@ -288,6 +621,19 @@ newmove(char ch)
 					break;
 				} else if ((curnum == 1 && nextnum == 2 )
 					   || (curnum == 2 && nextnum == 1)) {
+					for (k = j-1; k >= 0; k--) {
+						if (num[i][k] != 0) {
+							dyeffect[i][k] = D_RIGHT;
+						}
+						/*
+						if (num[i][k] == 1)
+							dyeffect[i][k] = 0x10;
+						else if (num[i][k] == 2)
+							dyeffect[i][k] = 0x20;
+						else if (num[i][k] >= 3)
+							dyeffect[i][k] = 0x40;
+							*/
+					}
 					num[i][j] = 3;
 					for (k = j-1; k > 0; k--)
 						num[i][k] = num[i][k-1];
@@ -303,6 +649,19 @@ newmove(char ch)
 				curnum = num[i][j];
 				nextnum = num[i+1][j];
 				if (curnum == 0) {
+					for (k = i+1; k < 4; k++) {
+						if (num[k][j] != 0) {
+							dyeffect[k][j] = D_UP;
+						}
+						/*
+						if (num[k][j] == 1)
+							dyeffect[k][j] = 0x100;
+						else if (num[k][j] == 2)
+							dyeffect[k][j] = 0x200;
+						else if (num[k][j] >= 3)
+							dyeffect[k][j] = 0x400;
+							*/
+					}
 					for (k = i; k < 3; k++) {
 						num[k][j] = num[k+1][j];
 						if (num[k][j] != 0)
@@ -311,6 +670,19 @@ newmove(char ch)
 					num[3][j] = 0;
 					break;
 				} else if (curnum == nextnum && curnum > 2) {
+					for (k = i+1; k < 4; k++) {
+						if (num[k][j] != 0) {
+							dyeffect[k][j] = D_UP;
+						}
+						/*
+						if (num[k][j] == 1)
+							dyeffect[k][j] = 0x100;
+						else if (num[k][j] == 2)
+							dyeffect[k][j] = 0x200;
+						else if (num[k][j] >= 3)
+							dyeffect[k][j] = 0x400;
+							*/
+					}
 					num[i][j] <<= 1;
 					for (k = i+1; k < 3; k++)
 						num[k][j] = num[k+1][j];
@@ -319,6 +691,19 @@ newmove(char ch)
 					break;
 				} else if ((curnum == 1 && nextnum == 2 )
 					   || (curnum == 2 && nextnum ==1)) {
+					for (k = i+1; k < 4; k++) {
+						if (num[k][j] != 0) {
+							dyeffect[k][j] = D_UP;
+						}
+						/*
+						if (num[k][j] == 1)
+							dyeffect[k][j] = 0x100;
+						else if (num[k][j] == 2)
+							dyeffect[k][j] = 0x200;
+						else if (num[k][j] >= 3)
+							dyeffect[k][j] = 0x400;
+							*/
+					}
 					num[i][j] = 3;
 					for (k = i+1; k < 3; k++)
 						num[k][j] = num[k+1][j];
@@ -334,6 +719,20 @@ newmove(char ch)
 				curnum = num[i][j];
 				nextnum = num[i-1][j];
 				if (curnum == 0) {
+					for (k = i-1; k >= 0; k--) {
+						if (num[k][j] != 0) {
+							dyeffect[k][j] = D_DOWN;
+							move(0, 0);
+						}
+						/*
+						if (num[k][j] == 1)
+							dyeffect[k][j] = 0x1000;
+						else if (num[k][j] == 2)
+							dyeffect[k][j] = 0x2000;
+						else if (num[k][j] >= 3)
+							dyeffect[k][j] = 0x4000;
+							*/
+					}
 					for (k = i; k > 0; k--) {
 						num[k][j] = num[k-1][j];
 						if (num[k][j] != 0)
@@ -342,6 +741,19 @@ newmove(char ch)
 					num[0][j] = 0;
 					break;
 				} else if (curnum == nextnum && curnum > 2) {
+					for (k = i-1; k >= 0; k--) {
+						if (num[k][j] != 0) {
+							dyeffect[k][j] = D_DOWN;
+						}
+						/*
+						if (num[k][j] == 1)
+							dyeffect[k][j] = 0x1000;
+						else if (num[k][j] == 2)
+							dyeffect[k][j] = 0x2000;
+						else if (num[k][j] >= 3)
+							dyeffect[k][j] = 0x4000;
+							*/
+					}
 					num[i][j] <<= 1;
 					for (k = i-1; k > 0; k--)
 						num[k][j] = num[k-1][j];
@@ -350,6 +762,19 @@ newmove(char ch)
 					break;
 				} else if ((curnum == 1 && nextnum == 2 )
 					   || (curnum == 2 && nextnum ==1)) {
+					for (k = i-1; k >= 0; k--) {
+						if (num[k][j] != 0) {
+							dyeffect[k][j] = D_DOWN;
+						}
+						/*
+						if (num[k][j] == 1)
+							dyeffect[k][j] = 0x1000;
+						else if (num[k][j] == 2)
+							dyeffect[k][j] = 0x2000;
+						else if (num[k][j] >= 3)
+							dyeffect[k][j] = 0x4000;
+							*/
+					}
 					num[i][j] = 3;
 					for (k = i-1; k > 0; k--)
 						num[k][j] = num[k-1][j];
@@ -368,8 +793,8 @@ newmove(char ch)
 		memcpy(prenum, tmpnum, sizeof(prenum));
 		pre_randnum = tmp_randnum;
 
-		getscore();
 		newrand(ch);
+		getscore();
 	}
 }
 static int
@@ -482,7 +907,9 @@ main(int argc, char *argv[])
 	cols = COLS;
 newgame:
 	bzero(num, sizeof(num));
-	num[rand()%4][rand()%4] = 3;
+	/* XXX */
+//	num[rand()%4][rand()%4] = 3;
+	num[1][1] = 1;
 	memcpy(prenum, num, sizeof(num));
 #ifdef STATISTICS
 	steps = 0;
@@ -493,6 +920,7 @@ newgame:
 	ch = ' ';
 	while (ch != 'q' && ch != 'Q') {
 		ch = getkey();
+		moved = 0;
 		switch(ch) {
 		case 'h':
 			newmove('h');
@@ -510,14 +938,23 @@ newgame:
 			wclear(stdscr);
 			memcpy(num, prenum, sizeof(num));
 			next_randnum = pre_randnum;
+			dyundo = 1;
 			break;
-		case 'i': // increase difficulty
+		case 'e': // increase difficulty
 			if (++difficulty > 4)
 				difficulty = 4;
 			break;
 		case 'd': // decrease difficulty
 			if (--difficulty < 1)
 				difficulty = 1;
+			break;
+		case 's': // decrease speed
+			if (++dyspeed > 8)
+				dyspeed = 8;
+			break;
+		case 'w':
+			if (--dyspeed < 1)
+				dyspeed = 1;
 			break;
 		case 'n':
 		case 'N':
