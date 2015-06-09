@@ -36,7 +36,7 @@ static int difficulty = 2;
 static int dyeffect[4][4];
 static int dyundo;
 static int dyspeed = 4;
-#define DELAYBASE 5000
+#define DELAYBASE (5000)
 
 static int moved;
 #ifdef STATISTICS
@@ -935,6 +935,7 @@ newgame:
 			break;
 		case 'u':
 			wclear(stdscr);
+			moved = 1;
 			memcpy(num, prenum, sizeof(num));
 			next_randnum = pre_randnum;
 			dyundo = 1;
