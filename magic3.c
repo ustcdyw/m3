@@ -13,7 +13,7 @@
 #include <strings.h>
 #include <string.h>
 
-#define TOP 	(LINES/2 - 8)
+#define TOP 	(LINES/2 - 4)
 #define LEFT	(COLS/2 - 14)
 
 #define LEFT_STEP 6
