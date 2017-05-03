@@ -27,5 +27,5 @@ Use arrow keys (or h, j, k, l) to play the game.
 Make:
 make
 
-#Play:
+Play:
 ./magic3
