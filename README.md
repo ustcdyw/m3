@@ -1,5 +1,5 @@
 # m3
-##Rule:
+Rule:
 1 + 2 = 3
 
 3 + 3 = 6
@@ -14,17 +14,18 @@
 
 ......
 
-Try to get the larger number as you can.
+Get larger number.
 
-##Play:
-Use arrow key (or h, j, k, l) to play the game.
+How to play:
+Use arrow keys (or h, j, k, l) to play the game.
 
 'u': Undo the last move.
 
 'q': Quit.
 
 
-##Install & Play:
+Make:
 make
 
+#Play:
 ./magic3
